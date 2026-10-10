@@ -281,3 +281,12 @@ forecast accuracy has not been evaluated.
 
 See the [spatial-parallel report](results/spatial-parallel-2026-10-10/README.md)
 for raw timing, hardware allocation, and reproduction commands.
+
+### Reproduce the input-cut-only rollout
+
+The [portable input-cut reproduction guide](reproductions/input-cut-2026-10-10/REPRODUCE.md)
+contains the exact runner, compiler settings, replay config, package versions,
+and recorded timing for the one-core BF16 + folding + tiling input-cut trial
+(**58.69 s** forward time). The checkpoint and prepared OM4 inputs are copied
+separately. This is separate from per-layer segmentation and four-core spatial
+parallelism.
