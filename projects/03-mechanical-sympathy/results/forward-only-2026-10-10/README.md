@@ -8,7 +8,22 @@ we enabled BF16 matrix-engine autocast and then folded BatchNorm into Conv2d.
 The plot follows [Karpathy’s autoresearch progress presentation](https://github.com/karpathy/autoresearch/blob/master/progress.png),
 using an experiment axis, annotated green speed records, and a running-best staircase.
 
-![Samudra forward-speed hill climb](progress.png)
+![Samudra years emulated per minute hill climb](years-per-minute.png)
+
+| Update | Years emulated per minute |
+| --- | ---: |
+| CPU reference | 0.790 |
+| Trainium FP32 | 5.424 |
+| Trainium BF16 | 6.664 |
+| Trainium BF16 + BatchNorm folding | 6.702 |
+
+Throughput uses **598 forecast steps × 5 days / 365.25 days per year**, divided
+by the measured forward minutes. It measures emulated forecast advances, not
+elapsed calendar labels, and excludes setup, compilation, transfers and metrics.
+CPU is a dashed reference line; the staircase tracks only Trainium experiments.
+The tiny folding improvement remains subject to timing variation.
+
+[Original forward-seconds plot](progress.png).
 
 | Backend / experiment | Single median | Full-range forward sum | Change versus preceding Trainium trial |
 | --- | ---: | ---: | ---: |
@@ -65,6 +80,10 @@ python projects/03-mechanical-sympathy/runners/plot_forward_progress.py \
   projects/03-mechanical-sympathy/results/forward-only-2026-10-10/experiments.json \
   --output projects/03-mechanical-sympathy/results/forward-only-2026-10-10/progress
 ```
+
+For the years-per-minute view, add `--metric years-per-minute` and
+`--cpu-reference projects/03-mechanical-sympathy/results/forward-only-2026-10-10/cpu.json`,
+and use `--output projects/03-mechanical-sympathy/results/forward-only-2026-10-10/years-per-minute`.
 
 The script writes PNG, SVG, PDF and a TSV ledger. `experiments.json` lists reports
 in experiment order, relative to the manifest. It checks complete forward-only
