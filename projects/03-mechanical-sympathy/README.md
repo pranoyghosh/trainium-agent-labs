@@ -255,3 +255,45 @@ steps), so the best result runs **11.53 simulated years per minute**, up from
 
 See the [follow-up report](results/easy-wins-2026-10-10/README.md) for the
 device-only check and plot reproduction commands.
+
+### Input cut after the input concat: 138.2 ms to 107.3 ms
+
+One graph boundary right after the model joins its two inputs makes the segmented 1 degree
+forward pass on Trainium2 **1.29x faster (138.2 ms to 107.3 ms)** and **2.15x faster than the
+unsegmented pass (230.3 ms)**. The math is unchanged: every run passes the check against the fp32
+CPU reference at 1.2e-6 relative RMS error, with land exactly zero.
+
+![Full forward pass, Trainium2 fp32](results/input-cut-2026-10-10/fig1_full_pass.png)
+
+**The change.** `trainium/samudra_core.py` runs a `torch_xla.sync()` right after
+`torch.cat((prognostic, boundary), dim=1)` whenever `--segments 1` is used, or alone with
+`trainium/bench.py --input-cut 1`. On the CPU the cut is `None`, so nothing changes there.
+
+**Why it works.** With `--segments 1` each UNet layer is its own compiled program, so
+`runners/profiling.py` gives a time per layer. The first UNet block took 47.4 ms, 35% of the
+pass, at 11% compute utilization, because the input concat sat in the same program. The
+instruction trace shows ragged 77- and 81-row weight blocks, 77-wide matmuls, and a weight
+reload for every one of 202,621 matmuls. With the cut, the concat runs as its own small
+program and the block sees one ready 162-channel tensor: full 128-row weight blocks,
+72,957 matmuls, 15.0 ms at 34% utilization. `trainium/probe_block0.py` isolates the cause:
+a pre-concatenated input makes the block 3.0x faster, while padding the channel count to
+192 or 256 changes almost nothing.
+
+![Where the graph boundary goes](results/input-cut-2026-10-10/fig5_graph_cut_diagram.png)
+
+![UNet layer 0 before and after](results/input-cut-2026-10-10/fig3_layer0_profile.png)
+
+| `trainium/bench.py`, 1 degree, fp32, batch 1 | Median ms | Speedup vs plain |
+| --- | ---: | ---: |
+| Plain (one graph) | 230.3 | 1.00x |
+| Plain + `--input-cut 1` | 204.3 | 1.13x |
+| `--segments 1` | 138.2 | 1.67x |
+| `--segments 1` + input cut | **107.3** | **2.15x** |
+
+These are single-pass `bench.py` measurements (real one-degree weights, random inputs with a fixed
+seed, median of 20 passes, seat-211), not the 299-call rollout timing used in the reports above,
+so the two sets of numbers are not directly comparable. Neither `trainium/candidate_adapter.py`
+nor `runners/benchmark_forward.py` uses the cut yet.
+
+See the [input-cut report](results/input-cut-2026-10-10/README.md) for the per-layer profile,
+the instruction counts, the probe, raw measurements and the figure script.
