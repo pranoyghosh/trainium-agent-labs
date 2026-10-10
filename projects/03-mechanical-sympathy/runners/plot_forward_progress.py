@@ -5,6 +5,7 @@
 import argparse
 import csv
 import json
+from datetime import datetime
 from pathlib import Path
 
 import matplotlib
@@ -18,11 +19,19 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("manifest", type=Path)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--metric",
+        choices=("seconds", "years-per-minute"),
+        default="seconds",
+        help="Plot forward seconds (lower is better) or simulated years per "
+        "forward minute (higher is better)",
+    )
     args = parser.parse_args()
     experiments = json.loads(args.manifest.read_text())
+    per_minute = args.metric == "years-per-minute"
     rows = []
     baseline = None
-    best = float("inf")
+    best = float("-inf") if per_minute else float("inf")
     pending = []
     for index, experiment in enumerate(experiments):
         path = args.manifest.parent / experiment["report"]
@@ -62,14 +71,25 @@ def main():
         seconds = report["eval_range"]["total_forward_wall_seconds"]
         if not np.isfinite(seconds) or seconds <= 0:
             raise ValueError(f"Invalid forward time: {path}")
-        improved = seconds < best
-        best = min(best, seconds)
+        # Each call covers a fixed number of model steps; recover the step from
+        # the target range, which is reported to whole days.
+        start = datetime.fromisoformat(report["target_time_start"])
+        end = datetime.fromisoformat(report["target_time_end"])
+        steps = report["forecast_timesteps"]
+        step_days = round((end - start).total_seconds() / 86400 / (steps - 1))
+        simulated_years = steps * step_days / 365.25
+        value = simulated_years / (seconds / 60) if per_minute else seconds
+        improved = value > best if per_minute else value < best
+        best = max(best, value) if per_minute else min(best, value)
         rows.append(
             {
                 "experiment": index,
                 "label": experiment["label"],
                 "forward_seconds": seconds,
-                "running_best_seconds": best,
+                "simulated_years": simulated_years,
+                "years_per_minute": simulated_years / (seconds / 60),
+                "value": value,
+                "running_best": best,
                 "speed_record": improved,
                 "single_median_ms": 1000 * report["single_call"]["median_wall_seconds"],
                 "calls": report["eval_range"]["calls"],
@@ -103,7 +123,7 @@ def main():
         selected = [r for r in rows if r["speed_record"] == kept]
         ax.scatter(
             [r["experiment"] for r in selected],
-            [r["forward_seconds"] for r in selected],
+            [r["value"] for r in selected],
             s=65 if kept else 28,
             color=color,
             edgecolors="#345447" if kept else "none",
@@ -111,7 +131,7 @@ def main():
             zorder=3,
         )
     x = [r["experiment"] for r in rows]
-    y = [r["running_best_seconds"] for r in rows]
+    y = [r["running_best"] for r in rows]
     ax.step(
         x + [max(len(experiments) - 1, x[-1]) + 0.25],
         y + [y[-1]],
@@ -120,10 +140,11 @@ def main():
         linewidth=2.5,
         label="Running best",
     )
+    unit = "yr/min" if per_minute else "s"
     for row in rows:
         ax.annotate(
-            f"{row['label']} ({row['forward_seconds']:.2f} s)",
-            (row["experiment"], row["forward_seconds"]),
+            f"{row['label']} ({row['value']:.2f} {unit})",
+            (row["experiment"], row["value"]),
             xytext=(9, 9),
             textcoords="offset points",
             fontsize=11,
@@ -135,11 +156,18 @@ def main():
         )
     ax.set_xlim(-0.1, max(len(experiments) - 1, x[-1]) + 1.6)
     spread = max(max(y) - min(y), max(y) * 0.12)
-    observed = [r["forward_seconds"] for r in rows]
-    ax.set_ylim(max(0, min(observed) - spread * 0.35), max(observed) + spread * 0.6)
+    observed = [r["value"] for r in rows]
+    ax.set_ylim(
+        max(0, min(observed) - spread * 0.35),
+        max(observed) + spread * (0.9 if per_minute else 0.6),
+    )
     ax.set_xticks(range(len(experiments)))
     ax.set_xlabel("Experiment #")
-    ax.set_ylabel("Full evaluation forward seconds (lower is better)")
+    ax.set_ylabel(
+        "Simulated years per forward minute (higher is better)"
+        if per_minute
+        else "Full evaluation forward seconds (lower is better)"
+    )
     ax.set_title(
         f"Autoresearch Progress: {len(rows)} Experiments, "
         f"{sum(r['speed_record'] for r in rows[1:])} Speed Improvement(s)",
@@ -148,7 +176,9 @@ def main():
     )
     ax.grid(alpha=0.2)
     ax.set_axisbelow(True)
-    ax.legend(loc="upper right", frameon=True, fontsize=9)
+    ax.legend(
+        loc="upper left" if per_minute else "upper right", frameon=True, fontsize=9
+    )
     footer = (
         f"Matched workload: {rows[0]['calls']} calls · device-resident inputs · "
         "compilation/warmup excluded\nSpeed records only: BF16 changes arithmetic; "
