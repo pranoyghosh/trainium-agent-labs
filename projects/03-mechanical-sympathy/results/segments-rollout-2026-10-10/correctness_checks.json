@@ -1,0 +1,59 @@
+{
+  "inputs": "outputs/one_forward_pass/inputs.pt (synthetic normalized Gaussian, all-wet mask); reference outputs/one_forward_pass/prediction.pt (CPU FP32, untiled)",
+  "model": "BatchNorm folded, 30-row tiling on full-resolution blocks",
+  "checks": [
+    {
+      "finite": true,
+      "rel_rmse_vs_cpu_fp32": 0.010413309559226036,
+      "max_abs_vs_cpu_fp32": 0.1649610996246338,
+      "label": "BF16 matmult, no cuts",
+      "compiler_flags": "--auto-cast=matmult --auto-cast-type=bf16"
+    },
+    {
+      "finite": true,
+      "rel_rmse_vs_cpu_fp32": 0.061457183212041855,
+      "max_abs_vs_cpu_fp32": 1.4405527114868164,
+      "label": "BF16 matmult, per-layer cuts, original F.pad circular upsample (INVALID)",
+      "compiler_flags": "--auto-cast=matmult --auto-cast-type=bf16"
+    },
+    {
+      "finite": true,
+      "rel_rmse_vs_cpu_fp32": 0.08205754309892654,
+      "max_abs_vs_cpu_fp32": 1.9344429969787598,
+      "label": "FP32, per-layer cuts, original F.pad circular upsample (INVALID)",
+      "compiler_flags": "--auto-cast=none"
+    },
+    {
+      "finite": true,
+      "rel_rmse_vs_cpu_fp32": 1.1653088449747884e-06,
+      "max_abs_vs_cpu_fp32": 1.8596649169921875e-05,
+      "label": "FP32, per-layer cuts, torch.cat upsample wrap",
+      "compiler_flags": "--auto-cast=none"
+    },
+    {
+      "finite": true,
+      "rel_rmse_vs_cpu_fp32": 0.010387502610683441,
+      "max_abs_vs_cpu_fp32": 0.1866365671157837,
+      "label": "BF16 matmult, per-layer cuts, torch.cat upsample wrap",
+      "compiler_flags": "--auto-cast=matmult --auto-cast-type=bf16"
+    },
+    {
+      "finite": true,
+      "rel_rmse_vs_cpu_fp32": 1.1645944368865457e-06,
+      "max_abs_vs_cpu_fp32": 2.0503997802734375e-05,
+      "label": "FP32, no cuts",
+      "compiler_flags": "--auto-cast=none"
+    }
+  ],
+  "upsample_isolated_fp32": {
+    "note": "ZonallyPeriodicBilinearUpsample alone on device vs CPU, random input, FP32, --auto-cast=none",
+    "380x45x90": {
+      "F.pad circular": 5.73e-08,
+      "torch.cat wrap": 5.73e-08
+    },
+    "280x90x180": {
+      "F.pad circular": 0.106,
+      "torch.cat wrap": 5.77e-08
+    }
+  }
+}
