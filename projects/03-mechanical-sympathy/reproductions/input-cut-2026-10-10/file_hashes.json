@@ -1,0 +1,16 @@
+{
+  "README.md": "3c73a00effee6a50cbb92edd6aa9c76d17365203a12d255e9803c8809828903b",
+  "REPRODUCE.md": "61167fc87f20e7a2ae6e414c086230be11d10ae25e77eac9ebffc851f45cd731",
+  "benchmark_forward.py": "b9a03a692df26494e192ae83c3b827860647e2d389131b5d69bb2bdb30b05f5f",
+  "eval.replay.yaml": "e9a0f5408ea94bfb23bae96f936c5569d4b7c384126cac6c3bf907c122332607",
+  "eval.replay.yaml.license": "218952cc11e8e13e4d53da8a357787b589faba06e259973c4bc08edcc2ea8414",
+  "file_hashes.json.license": "218952cc11e8e13e4d53da8a357787b589faba06e259973c4bc08edcc2ea8414",
+  "forward_timing.py": "4317866c792da0feba19fb7357e3a18b883af02e05857fab4d1dbd4e75e47cdd",
+  "inference_fusion.py": "3bb08e9ddf9b34e27b712d14f80d75bf2a99a35c3395567f65944953dd58bef4",
+  "recorded_result.json": "4c21ebe9de6b7709efa6b40c72b363e049006e64497ac4afb3471ee60cbbc50d",
+  "recorded_result.json.license": "218952cc11e8e13e4d53da8a357787b589faba06e259973c4bc08edcc2ea8414",
+  "run.sh": "370d3fcd47db7579f1ff4658a59a191b673e0e8684892d10271b83f07a2e47c7",
+  "samudra_tiled.py": "eab873c2d3966438b38ae673be9ab9863ac7a63b8dcd80458323f9d498cd0da8",
+  "versions.json": "a6ee2610ae28996070a1e1c0d5f1b10edb5e796c53ac3c0ab01ede7e06d73257",
+  "versions.json.license": "218952cc11e8e13e4d53da8a357787b589faba06e259973c4bc08edcc2ea8414"
+}
