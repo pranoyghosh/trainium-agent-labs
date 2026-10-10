@@ -81,13 +81,17 @@ for spatial parallelism versus **42.64 s** for the paired one-core reference
 (**1.21× faster**). The complete rollout loop still takes **35.43 s**, as reported
 above. Spatial-split throughput is **13.94 simulated years per forward minute**.
 
-The newest one-core results are **58.69 s** with the input cut alone and
-**14.08 s** with the input cut plus cuts after all 17 UNet layers. The latter
-is the new measured speed record (about **34.88 simulated years per forward
-minute**). These runs use eight CPU threads and the same checkpoint/prepared
-case. They have not been combined with four-core spatial parallelism; no
-combined speedup is inferred. The reports were copied from the local
-`tal-easy-wins` segmented-rollout experiment. No new model execution ran.
+The input-cut-only trial took **58.69 s**. The corrected per-layer segmented
+trial took **13.99 s** (**35.12 simulated years per forward minute**).
+The previously plotted 14.08 s trial is invalid: the compiler miscompiled
+circular padding when the final upsample was segmented. The corrected runner
+wraps longitude with `torch.cat`. The original report remains as a failure
+artifact, excluded from the speed record. See the
+[segmentation report](../segments-rollout-2026-10-10/README.md) for raw timings,
+compiler details, reproduction commands and one-call CPU comparisons.
+These runs use eight CPU threads and the same checkpoint/prepared case.
+No combined segmentation/spatial-parallel speedup or forecast-quality result
+has been measured.
 
 Hardware allocation and CPU-thread changes are marked on the plots. The four
 cooperating ranks represent one trajectory, so their timings are not summed.

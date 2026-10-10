@@ -134,7 +134,7 @@ def main():
         fig.text(
             0.085,
             0.035,
-            "One trajectory throughout · 299 calls / 598 five-day records · 365.25 days/year\nTrials 0–4 and 7–8: 1 core, 8 CPU threads. Trials 5–6: 2 threads/rank; 1 → 4 cores.\nTrial 6 splits two blocks; trial 8 segments 17 UNet layers on ONE core. Combined multicore + segmentation untested.\nCompilation/warmup excluded. Accuracy unverified.",
+            "One trajectory throughout · 299 calls / 598 five-day records · 365.25 days/year\nTrials 0–4 and 7–8: 1 core, 8 CPU threads. Trials 5–6: 2 threads/rank; 1 → 4 cores.\nTrial 6 splits two blocks; trial 8 segments 17 UNet layers on ONE core. Combined multicore + segmentation untested.\nCompilation/warmup excluded. Trial 8 uses corrected longitude wrap; one-call checked, forecast quality unverified.",
             fontsize=10,
             color="#59606b",
             linespacing=1.5,
