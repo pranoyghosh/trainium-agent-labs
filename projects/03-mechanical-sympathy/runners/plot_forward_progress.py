@@ -220,7 +220,9 @@ def main():
     )
     ax.grid(alpha=0.2)
     ax.set_axisbelow(True)
-    ax.legend(loc="upper right", frameon=True, fontsize=9)
+    ax.legend(
+        loc="upper left" if throughput else "upper right", frameon=True, fontsize=9
+    )
     footer = (
         (
             f"Matched workload: {rows[0]['calls']} calls · 598 five-day steps / 365.25 days per year · "
