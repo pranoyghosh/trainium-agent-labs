@@ -4,6 +4,14 @@
 
 ![Single-rollout simulated years per minute](results/spatial-parallel-2026-10-10/karpathy_years_per_minute.png)
 
+Latest corrected record: **13.99 s** for 299 forward calls, or **35.12 simulated
+years per forward minute**, on one logical core. The earlier 14.08 s segmented
+trial was incorrect; the plots now exclude it. The
+[final segmentation report](results/segments-rollout-2026-10-10/README.md)
+preserves the compiler workaround, failed trials, numerical checks and commands.
+One-call checks pass at the existing precision error; full rollout forecast
+quality remains unmeasured.
+
 This project checks Samudra inference against a CPU reference and then improves
 the same workload on AWS Trainium.
 

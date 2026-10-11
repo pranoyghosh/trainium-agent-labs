@@ -166,6 +166,16 @@ def main():
         help="Tile blocks whose grid has at least this many cells (16200 adds 90x180)",
     )
     parser.add_argument("--fold-batch-norm", action="store_true")
+    parser.add_argument(
+        "--input-cut",
+        action="store_true",
+        help="Neuron only: cut the graph after the input concat, before the UNet",
+    )
+    parser.add_argument(
+        "--segments",
+        action="store_true",
+        help="Neuron only: cut the graph after every UNet layer (implies --input-cut)",
+    )
     parser.add_argument("--threads", type=int, default=8)
     parser.add_argument("--warmup", type=int, default=3)
     parser.add_argument("--single-repeats", type=int, default=20)
@@ -251,6 +261,40 @@ def main():
         from samudra_tiled import tile_large_blocks
         tiled_blocks = tile_large_blocks(model, tuple(initial.shape[-2:]), args.tile_rows, args.tile_min_pixels)
         print(f"Tiled blocks: {tiled_blocks}", flush=True)
+    graph_cuts = []
+    if args.backend == "neuron" and (args.input_cut or args.segments):
+        # Same cuts as trainium/samudra_core.py: each piece becomes its own
+        # compiled program. The math is unchanged.
+        import types
+
+        import torch_xla
+        from samudra.models.modules.blocks import ZonallyPeriodicBilinearUpsample
+
+        def wrap_upsample(self, x):
+            # Same math as ZonallyPeriodicBilinearUpsample.forward, but wraps
+            # longitude with torch.cat. Compiled as its own program, the
+            # F.pad(mode="circular") version is wrong on neuronx-cc 2.27 for the
+            # 280x90x180 input (10.6% relative error); the cat version is exact.
+            width = x.shape[-1]
+            padded = torch.cat((x[..., -1:], x, x[..., :1]), dim=-1)
+            upsampled = torch.nn.functional.interpolate(
+                padded, scale_factor=(2, 2), mode="bilinear", align_corners=False
+            )
+            return upsampled[..., 2 : 2 + 2 * width]
+
+        for layer in model.unet.layers:
+            if isinstance(layer, ZonallyPeriodicBilinearUpsample):
+                layer.forward = types.MethodType(wrap_upsample, layer)
+        graph_cuts.append("upsample longitude wrap via torch.cat")
+        model.unet.register_forward_pre_hook(lambda module, inputs: torch_xla.sync())
+        graph_cuts.append("input")
+        if args.segments:
+            for layer in model.unet.layers:
+                layer.register_forward_hook(
+                    lambda module, inputs, output: torch_xla.sync()
+                )
+            graph_cuts.append(f"after each of {len(model.unet.layers)} UNet layers")
+        print(f"Graph cuts: {graph_cuts}", flush=True)
     model.to(device)
     synchronize()
     setup_seconds = time.perf_counter() - setup_start
@@ -369,6 +413,7 @@ def main():
                 subprocess.check_output(["neuron-ls", "--json-output"], text=True)
             ),
         }
+    report["graph_cuts"] = graph_cuts
     report["tiling"] = {
         "band_rows": args.tile_rows,
         "min_pixels": args.tile_min_pixels,
